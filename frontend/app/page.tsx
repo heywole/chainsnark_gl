@@ -2,138 +2,167 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+function TypeWriter({ text, speed = 30 }: { text: string; speed?: number }) {
+  const [displayed, setDisplayed] = useState('')
+  useEffect(() => {
+    setDisplayed('')
+    let i = 0
+    const t = setInterval(() => {
+      if (i < text.length) { setDisplayed(text.slice(0, ++i)) }
+      else clearInterval(t)
+    }, speed)
+    return () => clearInterval(t)
+  }, [text, speed])
+  return <span>{displayed}<span className="cursor" /></span>
+}
+
 function Counter({ end }: { end: number }) {
   const [n, setN] = useState(0)
   useEffect(() => {
-    const step = Math.ceil(end / 50)
-    const t = setInterval(() => setN(p => { if (p + step >= end) { clearInterval(t); return end } return p + step }), 25)
+    const step = Math.ceil(end / 40)
+    const t = setInterval(() => setN(p => { if (p + step >= end) { clearInterval(t); return end } return p + step }), 30)
     return () => clearInterval(t)
   }, [end])
   return <>{n.toLocaleString()}</>
 }
 
 export default function Home() {
+  const [booted, setBooted] = useState(false)
+  useEffect(() => { setTimeout(() => setBooted(true), 800) }, [])
+
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
       {/* Nav */}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #1e1e1e', flexWrap: 'wrap', gap: 8 }}>
-        <div className="animate-flicker glow-red" style={{ fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '0.15em', color: '#ff3c00' }}>
-          CHAINSNARK
+      <nav style={{ borderBottom: '1px solid var(--border)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: 'var(--green)', fontSize: 11, opacity: 0.5 }}>~/</span>
+          <span className="glow-green animate-flicker" style={{ color: 'var(--green)', fontSize: 14, fontWeight: 700, letterSpacing: '0.15em' }}>CHAINSNARK</span>
+          <span style={{ color: 'var(--border2)', fontSize: 11 }}>v1.0.0</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Powered by GenLayer · Chain 4221
-          </div>
-          <a href="https://explorer-bradbury.genlayer.com" target="_blank" rel="noreferrer"
-            style={{ fontSize: 10, color: '#00ff94', textDecoration: 'none', letterSpacing: '0.1em', border: '1px solid rgba(0,255,148,0.3)', padding: '3px 8px' }}>
-            Explorer →
-          </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>
+          <span style={{ color: 'var(--green)', opacity: 0.6 }}>●</span>
+          <span>GENLAYER BRADBURY</span>
+          <span style={{ color: 'var(--border2)' }}>|</span>
+          <span>CHAIN 4221</span>
         </div>
       </nav>
 
       {/* Hero */}
-      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 20px', position: 'relative' }}>
 
-        <div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', background: 'rgba(255,60,0,0.04)', filter: 'blur(130px)', pointerEvents: 'none' }} />
-
-        {/* Badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 14px', border: '1px solid #1e1e1e', fontSize: 10, color: '#00ff94', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 28 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00ff94', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-          Live on GenLayer Testnet Bradbury · AI Consensus On-Chain
-        </div>
-
-        {/* Headline */}
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 16vw, 160px)', lineHeight: 1, letterSpacing: '0.05em', marginBottom: 20 }}>
-          <span style={{ color: 'white' }}>CHAIN</span>
-          <span className="glow-red" style={{ color: '#ff3c00' }}>SNARK</span>
-        </h1>
-
-        <p style={{ fontSize: 'clamp(15px, 3vw, 21px)', color: 'rgba(255,255,255,0.5)', marginBottom: 10, maxWidth: 500 }}>
-          The blockchain that judges you.
-        </p>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.22)', marginBottom: 52, maxWidth: 420, lineHeight: 1.8 }}>
-          Paste any wallet. The AI roasts your entire on-chain history across ALL chains.<br />
-          Or ask anything. Get a brutal honest answer.<br />
-          Everything stored on GenLayer forever. No wallet needed.
-        </p>
-
-        {/* CTAs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 380 }}>
-          <Link href="/roast">
-            <button className="btn-red" style={{ width: '100%', padding: '18px', fontSize: 22, letterSpacing: '0.08em' }}>
-              💬 ROAST MY WALLET
-            </button>
-          </Link>
-          <Link href="/oracle">
-            <button className="btn-green" style={{ width: '100%', padding: '18px', fontSize: 22, letterSpacing: '0.08em' }}>
-              🎱 ASK THE ORACLE
-            </button>
-          </Link>
-        </div>
-
-        <p style={{ marginTop: 14, fontSize: 10, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Free · No wallet · EVM + Solana + SUI · Results on-chain
-        </p>
-
-        {/* Stats */}
-        <div style={{ marginTop: 60, display: 'flex', gap: 40, textAlign: 'center', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[
-            { val: 4721,  color: '#ff3c00', label: 'Wallets Roasted' },
-            { val: 9103,  color: '#00ff94', label: 'Questions Answered' },
-          ].map((s, i) => (
-            <div key={i}>
-              <div className={i === 0 ? 'glow-red' : 'glow-green'} style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: s.color }}>
-                <Counter end={s.val} />
+        {/* Boot sequence */}
+        <div style={{ width: '100%', maxWidth: 560, marginBottom: 48 }}>
+          <div style={{ fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 20 }}>
+            {booted && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {[
+                  '[OK] GenLayer consensus engine loaded',
+                  '[OK] AI validators connected',
+                  '[OK] Blockchain memory initialized',
+                  '[OK] Roast engine armed and dangerous',
+                ].map((line, i) => (
+                  <div key={i} style={{ color: i < 3 ? 'var(--dimmer)' : 'var(--green)', opacity: 0.7, fontSize: 10 }}>
+                    {line}
+                  </div>
+                ))}
               </div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', marginTop: 4, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{s.label}</div>
-            </div>
-          ))}
-          <div>
-            <div className="glow-yellow" style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: '#ffe44d' }}>∞</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', marginTop: 4, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Stored Forever</div>
+            )}
+          </div>
+
+          {/* Main title */}
+          <div style={{ marginBottom: 6, fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.15em' }}>
+            SYSTEM::IDENTIFY
+          </div>
+          <h1 style={{ fontSize: 'clamp(36px, 8vw, 72px)', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', marginBottom: 16 }}>
+            <span className="glow-green animate-flicker" style={{ color: 'var(--green)' }}>CHAIN</span>
+            <span style={{ color: 'var(--white)' }}>SNARK</span>
+            <span style={{ color: 'var(--green)', fontSize: '0.4em', verticalAlign: 'top', marginLeft: 6, opacity: 0.6 }}>_</span>
+          </h1>
+
+          <div style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 8, letterSpacing: '0.05em' }}>
+            {booted ? <TypeWriter text="// The blockchain that judges you." /> : ''}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--dimmer)', lineHeight: 1.7, maxWidth: 420 }}>
+            Paste any wallet. Ask anything. GenLayer AI runs on-chain.
+            Results stored permanently. No wallet needed. No filter.
           </div>
         </div>
-      </section>
 
-      {/* Features grid */}
-      <section style={{ borderTop: '1px solid #1e1e1e', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-        {[
-          { href: '/roast', emoji: '💬', title: 'THE ROAST', color: '#ff3c00', cls: 'glow-red',
-            desc: 'Paste any EVM, Solana, or SUI wallet. GenLayer AI pulls your history across all chains and roasts every bad decision. Publicly. Forever.' },
-          { href: '/oracle', emoji: '🎱', title: 'THE ORACLE', color: '#00ff94', cls: 'glow-green',
-            desc: 'Ask any yes/no question. GenLayer\'s AI consensus delivers a verdict with brutal honest reasoning. No filter. Stored permanently.' },
-        ].map(f => (
-          <Link key={f.href} href={f.href} style={{ textDecoration: 'none' }}>
-            <div style={{ padding: '44px 48px', borderRight: '1px solid #1e1e1e', cursor: 'pointer', transition: 'background 0.2s', height: '100%' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.012)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              <div style={{ fontSize: 38, marginBottom: 14 }}>{f.emoji}</div>
-              <h2 className={f.cls} style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: f.color, letterSpacing: '0.08em', marginBottom: 12 }}>{f.title}</h2>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', lineHeight: 1.8 }}>{f.desc}</p>
-              <div style={{ marginTop: 18, fontSize: 10, color: f.color, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Enter →</div>
+        {/* Terminal window */}
+        <div style={{ width: '100%', maxWidth: 560 }}>
+
+          {/* Window chrome */}
+          <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderBottom: 'none', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f57' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#febc2e' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c840' }} />
+            <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>chainsnark — bash</span>
+          </div>
+
+          {/* Terminal body */}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '20px' }}>
+            <div style={{ fontSize: 11, color: 'var(--dimmer)', marginBottom: 16, lineHeight: 1.8 }}>
+              <span style={{ color: 'var(--green)' }}>chainsnark@genlayer</span>
+              <span style={{ color: 'var(--white)' }}>:</span>
+              <span style={{ color: 'var(--cyan)' }}>~</span>
+              <span style={{ color: 'var(--white)' }}>$ </span>
+              <span style={{ color: 'var(--white)' }}>./chainsnark --help</span>
             </div>
-          </Link>
-        ))}
-      </section>
 
-      {/* How it works */}
-      <section style={{ borderTop: '1px solid #1e1e1e', padding: '40px 48px' }}>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 20 }}>How It Works</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-          {['Paste wallet or question', '→', 'GenLayer AI fetches data & reasons on-chain', '→', 'Multiple validators reach consensus', '→', 'Result stored permanently', '→', 'Share card generated'].map((s, i) => (
-            <span key={i} style={{ color: s === '→' ? 'rgba(255,60,0,0.5)' : undefined }}>{s}</span>
+            <div style={{ fontSize: 11, color: 'var(--dim)', lineHeight: 2, marginBottom: 20 }}>
+              <div><span style={{ color: 'var(--amber)' }}>COMMANDS:</span></div>
+              <div style={{ paddingLeft: 16 }}>
+                <span style={{ color: 'var(--green)' }}>roast</span>
+                <span style={{ color: 'var(--dimmer)', margin: '0 8px' }}>·····</span>
+                <span>Submit wallet address → AI destroys it on-chain</span>
+              </div>
+              <div style={{ paddingLeft: 16 }}>
+                <span style={{ color: 'var(--cyan)' }}>oracle</span>
+                <span style={{ color: 'var(--dimmer)', margin: '0 8px' }}>····</span>
+                <span>Ask yes/no → brutal honest verdict on-chain</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Link href="/roast" style={{ textDecoration: 'none', flex: 1 }}>
+                <button className="btn-exec" style={{ width: '100%', fontSize: 11 }}>
+                  $ ./roast.sh
+                </button>
+              </Link>
+              <Link href="/oracle" style={{ textDecoration: 'none', flex: 1 }}>
+                <button className="btn-exec" style={{ width: '100%', background: 'transparent', color: 'var(--cyan)', border: '1px solid var(--cyan)', fontSize: 11, boxShadow: 'none' }}
+                  onMouseEnter={e => { (e.target as HTMLElement).style.background = 'rgba(0,229,255,0.08)'; (e.target as HTMLElement).style.boxShadow = '0 0 20px rgba(0,229,255,0.3)' }}
+                  onMouseLeave={e => { (e.target as HTMLElement).style.background = 'transparent'; (e.target as HTMLElement).style.boxShadow = 'none' }}>
+                  $ ./oracle.sh
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ marginTop: 40, display: 'flex', gap: 32, fontSize: 11 }}>
+          {[
+            { label: 'wallets_roasted', val: 4721, color: 'var(--green)' },
+            { label: 'questions_answered', val: 9103, color: 'var(--cyan)' },
+            { label: 'stored_forever', val: '∞', color: 'var(--amber)' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ color: s.color, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
+                {typeof s.val === 'number' ? <Counter end={s.val} /> : s.val}
+              </div>
+              <div style={{ color: 'var(--dimmer)', fontSize: 9, letterSpacing: '0.1em', marginTop: 2 }}>{s.label}</div>
+            </div>
           ))}
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid #1e1e1e', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'rgba(255,255,255,0.18)', flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.15em', fontSize: 14 }}>CHAINSNARK</span>
-        <span>Built on GenLayer · Moralis · Helius · Blockberry</span>
-        <a href="https://explorer-bradbury.genlayer.com" target="_blank" rel="noreferrer" style={{ color: '#ff3c00', textDecoration: 'none' }}>
-          GenLayer Explorer →
-        </a>
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>
+        <span>CHAINSNARK v1.0.0</span>
+        <span>POWERED BY GENLAYER AI · CHAIN 4221</span>
+        <a href="https://explorer-bradbury.genlayer.com" target="_blank" rel="noreferrer" style={{ color: 'var(--green)', textDecoration: 'none' }}>EXPLORER →</a>
       </footer>
     </main>
   )

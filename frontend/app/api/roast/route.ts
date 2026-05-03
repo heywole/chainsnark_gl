@@ -1,62 +1,88 @@
-export const maxDuration = 300 // 5 minutes
 import { NextRequest, NextResponse } from 'next/server'
 
-const CONTRACT = process.env.NEXT_PUBLIC_ROAST_CONTRACT!
-const KEY      = process.env.DEPLOYER_PRIVATE_KEY!
+const GENLAYER_RPC   = 'https://rpc-bradbury.genlayer.com'
+const ROAST_CONTRACT = process.env.NEXT_PUBLIC_ROAST_CONTRACT!
+const PRIVATE_KEY    = process.env.DEPLOYER_PRIVATE_KEY!
 
-function detectChain(a: string) {
-  if (a.length >= 32 && a.length <= 44 && !a.startsWith('0x')) return 'solana'
-  if (a.startsWith('0x') && a.length === 66) return 'sui'
+function detectChain(address: string): 'evm' | 'solana' | 'sui' {
+  if (address.length >= 32 && address.length <= 44 && !address.startsWith('0x')) return 'solana'
+  if (address.startsWith('0x') && address.length === 66) return 'sui'
   return 'evm'
+}
+
+async function rpc(method: string, params: any[]) {
+  const res = await fetch(GENLAYER_RPC, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const data = await res.json()
+  if (data.error) throw new Error(JSON.stringify(data.error))
+  return data.result
+}
+
+async function sendTx(contractMethod: string, args: any[]) {
+  // GenLayer uses gen_sendTransaction with encoded calldata
+  const result = await rpc('gen_sendTransaction', [{
+    from:  undefined,
+    to:    ROAST_CONTRACT,
+    value: '0x0',
+    data:  JSON.stringify({ method: contractMethod, args }),
+    // Pass private key for server-side signing
+    private_key: PRIVATE_KEY,
+  }])
+  return result
+}
+
+async function readContract(contractMethod: string, args: any[] = []) {
+  const result = await rpc('gen_call', [{
+    to:   ROAST_CONTRACT,
+    data: JSON.stringify({ method: contractMethod, args }),
+  }, 'latest'])
+  return result
+}
+
+async function waitForTx(txHash: string, maxTries = 60) {
+  for (let i = 0; i < maxTries; i++) {
+    await new Promise(r => setTimeout(r, 5000))
+    try {
+      const receipt = await rpc('eth_getTransactionReceipt', [txHash])
+      if (receipt && receipt.status === '0x1') return receipt
+    } catch { /* keep polling */ }
+  }
+  throw new Error('Transaction timed out after 5 minutes')
 }
 
 export async function POST(req: NextRequest) {
   try {
     const { address } = await req.json()
-    if (!address?.trim()) return NextResponse.json({ error: 'No address provided' }, { status: 400 })
-
-    const chain = detectChain(address.trim())
-    const { createClient, createAccount } = await import('genlayer-js')
-    const { testnetBradbury } = await import('genlayer-js/chains')
-    const { TransactionStatus } = await import('genlayer-js/types')
-
-    const account = createAccount(KEY as `0x${string}`)
-    const client  = createClient({ chain: testnetBradbury, account })
-
-    const txHash = await client.writeContract({
-      address:      CONTRACT as `0x${string}`,
-      functionName: 'roast_wallet',
-      args:         [address.trim(), chain],
-      value:        0n,
-    })
-
-    console.log('TX sent:', txHash)
-
-    // Wait using SDK but catch the error and still try to read
-    try {
-      await client.waitForTransactionReceipt({
-        hash:     txHash,
-        status:   TransactionStatus.FINALIZED,
-        retries:  80,
-        interval: 5000,
-      })
-    } catch (e) {
-      console.log('waitForReceipt error (ignoring):', e)
-      // Wait extra time then try to read anyway
-      await new Promise(r => setTimeout(r, 30000))
+    if (!address?.trim()) {
+      return NextResponse.json({ error: 'No address provided' }, { status: 400 })
     }
 
-    // Read result using SDK
-    const roast = await client.readContract({
-      address:      CONTRACT as `0x${string}`,
-      functionName: 'get_last_roast',
-      args:         [],
-    })
+    const chain = detectChain(address.trim())
 
-    console.log('Roast result:', roast)
+    // Send tx to GenLayer contract
+    let txHash: string
+    try {
+      txHash = await sendTx('roast_wallet', [address.trim(), chain])
+    } catch (e: any) {
+      console.error('Send tx error:', e)
+      return NextResponse.json({ error: `GenLayer tx failed: ${e.message}` }, { status: 500 })
+    }
+
+    if (!txHash) {
+      return NextResponse.json({ error: 'No transaction hash returned' }, { status: 500 })
+    }
+
+    // Wait for consensus
+    await waitForTx(txHash)
+
+    // Read the result
+    const roast = await readContract('get_last_roast')
 
     return NextResponse.json({
-      roast:     String(roast),
+      roast:     roast ?? 'The chain has spoken but the roast was lost in consensus.',
       txHash,
       chain,
       address:   address.trim(),
