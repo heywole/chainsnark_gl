@@ -1,3 +1,4 @@
+export const maxDuration = 300 // 5 minutes
 import { NextRequest, NextResponse } from 'next/server'
 
 const CONTRACT = process.env.NEXT_PUBLIC_ROAST_CONTRACT!
