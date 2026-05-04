@@ -56,7 +56,7 @@ export default function RoastPage() {
       const data = ('0x' + Buffer.from(calldata).toString('hex')) as `0x${string}`
 
       // Send tx signed by user's MetaMask
-      const txHash = await walletClient.sendTransaction({
+      const txHash = await walletClient.sendTransaction({ chain: undefined,
         to:    ROAST_CONTRACT,
         data,
         value: 0n,

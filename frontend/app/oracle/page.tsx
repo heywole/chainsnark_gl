@@ -44,7 +44,7 @@ export default function OraclePage() {
       const calldata = JSON.stringify({ method: 'ask_oracle', args: [question.trim()] })
       const data = ('0x' + Buffer.from(calldata).toString('hex')) as `0x${string}`
 
-      const txHash = await walletClient.sendTransaction({
+      const txHash = await walletClient.sendTransaction({ chain: undefined,
         to:    ORACLE_CONTRACT,
         data,
         value: 0n,
