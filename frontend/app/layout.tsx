@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               accentColor: '#00ff41',
               accentColorForeground: '#000',
               borderRadius: 'none',
-              fontStack: 'mono',
+              fontStack: 'system',
             })}>
               {children}
             </RainbowKitProvider>
