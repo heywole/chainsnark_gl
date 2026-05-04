@@ -1,27 +1,36 @@
+'use client'
 import './globals.css'
-import { JetBrains_Mono, Share_Tech_Mono } from 'next/font/google'
+import '@rainbow-me/rainbowkit/styles.css'
+import { WagmiProvider } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
+import { wagmiConfig } from '@/lib/config'
 
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['300','400','500','700'],
-  variable: '--font-mono',
-})
-
-export const metadata = {
-  title: 'ChainSnark — The Blockchain That Judges You',
-  description: 'Ask it anything. Show it your wallet. It will not be kind.',
-  openGraph: {
-    title: 'ChainSnark',
-    description: 'The blockchain that judges you. Powered by GenLayer AI.',
-  },
-  twitter: { card: 'summary_large_image' },
-}
+const queryClient = new QueryClient()
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={jetbrains.variable}>
+    <html lang="en">
+      <head>
+        <title>ChainSnark — The Blockchain That Judges You</title>
+        <meta name="description" content="Ask it anything. Show it your wallet. It will not be kind." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+      </head>
       <body>
-        {children}
+        <WagmiProvider config={wagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <RainbowKitProvider theme={darkTheme({
+              accentColor: '#00ff41',
+              accentColorForeground: '#000',
+              borderRadius: 'none',
+              fontStack: 'mono',
+            })}>
+              {children}
+            </RainbowKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
       </body>
     </html>
   )
