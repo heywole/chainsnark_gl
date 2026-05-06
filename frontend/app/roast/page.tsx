@@ -1,11 +1,11 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useWalletClient, usePublicClient, useChainId, useSwitchChain } from 'wagmi'
 import ShareCard from '@/components/ShareCard'
-import Thinking  from '@/components/Thinking'
-import { ROAST_CONTRACT, GL_RPC } from '@/lib/config'
+import Thinking from '@/components/Thinking'
+
+const ROAST_CONTRACT = process.env.NEXT_PUBLIC_ROAST_CONTRACT!
+const GL_RPC = 'https://rpc-bradbury.genlayer.com'
 
 type Stage = 'input' | 'loading' | 'result' | 'error'
 
@@ -27,61 +27,43 @@ export default function RoastPage() {
   const [result,  setResult]  = useState<any>(null)
   const [errMsg,  setErrMsg]  = useState('')
 
-  const { data: walletClient } = useWalletClient()
-  const publicClient = usePublicClient()
-  const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
-
   const validation = validateAddress(address)
-  const isConnected = !!walletClient
-  const isWrongNetwork = chainId !== 4221
 
   async function handleRoast() {
     if (!validation.valid) return
-    if (!walletClient) { setErrMsg('ERR: connect your wallet first'); return }
-    if (isWrongNetwork) { try { switchChain({ chainId: 4221 }) } catch {}; return }
-
     setStage('loading')
     setErrMsg('')
-
     try {
-      const chain    = validation.chain
-      const calldata = JSON.stringify({ method: 'roast_wallet', args: [address.trim(), chain] })
-      const data     = ('0x' + Buffer.from(calldata).toString('hex')) as `0x${string}`
+      const { createClient, createAccount } = await import('genlayer-js')
+      const { testnetBradbury } = await import('genlayer-js/chains')
+      const { TransactionStatus } = await import('genlayer-js/types')
 
-      const txHash = await (walletClient as any).sendTransaction({
-        to:    ROAST_CONTRACT,
-        data,
-        value: 0n,
+      const account = createAccount()
+      const client  = createClient({ chain: testnetBradbury, account })
+
+      const txHash = await client.writeContract({
+        address:      ROAST_CONTRACT as `0x${string}`,
+        functionName: 'roast_wallet',
+        args:         [address.trim(), validation.chain],
+        value:        0n,
       })
 
-      let roast = ''
-      for (let i = 0; i < 80; i++) {
-        await new Promise(r => setTimeout(r, 5000))
-        try {
-          const receipt = await publicClient!.getTransactionReceipt({ hash: txHash })
-          if (receipt?.status === 'success') {
-            const res = await fetch(GL_RPC, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0', id: 1,
-                method: 'gen_call',
-                params: [{ to: ROAST_CONTRACT, data: ('0x' + Buffer.from(JSON.stringify({ method: 'get_last_roast', args: [] })).toString('hex')), type: 'read' }],
-              }),
-            })
-            const d = await res.json()
-            roast = d.result ?? ''
-            break
-          }
-        } catch { /* keep polling */ }
-      }
+      try {
+        await client.waitForTransactionReceipt({
+          hash: txHash, status: TransactionStatus.FINALIZED, retries: 80, interval: 5000
+        })
+      } catch { await new Promise(r => setTimeout(r, 30000)) }
 
-      if (!roast) roast = 'Roast generated but lost in consensus. Try again!'
-      setResult({ roast, txHash, chain, address: address.trim(), explorer: `https://explorer-bradbury.genlayer.com/tx/${txHash}`, timestamp: new Date().toISOString() })
+      const roast = await client.readContract({
+        address: ROAST_CONTRACT as `0x${string}`,
+        functionName: 'get_last_roast',
+        args: [],
+      })
+
+      setResult({ roast: String(roast), txHash, chain: validation.chain, address: address.trim(), explorer: `https://explorer-bradbury.genlayer.com/tx/${txHash}`, timestamp: new Date().toISOString() })
       setStage('result')
     } catch (err: any) {
-      setErrMsg(err?.shortMessage ?? err?.message ?? 'ERR: transaction failed')
+      setErrMsg(err?.message ?? 'ERR: something went wrong')
       setStage('error')
     }
   }
@@ -93,37 +75,20 @@ export default function RoastPage() {
           <span style={{ color: 'var(--green)', fontSize: 11, opacity: 0.5 }}>~/</span>
           <span className="animate-flicker" style={{ color: 'var(--green)', fontSize: 13, fontWeight: 700, letterSpacing: '0.15em' }}>CHAINSNARK</span>
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/oracle" style={{ fontSize: 10, color: 'var(--dimmer)', textDecoration: 'none' }}>$ ./oracle.sh →</Link>
-          <ConnectButton />
-        </div>
+        <Link href="/oracle" style={{ fontSize: 10, color: 'var(--dimmer)', textDecoration: 'none' }}>$ ./oracle.sh →</Link>
       </nav>
-
       <div style={{ flex: 1, padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 560, marginBottom: 24 }} className="animate-slide-up">
+        <div style={{ width: '100%', maxWidth: 560, marginBottom: 24 }}>
           <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 6 }}>CHAINSNARK::MODULE — ROAST_ENGINE v1.0</div>
           <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }}>
             <span className="glow-green" style={{ color: 'var(--green)' }}>$</span>
             <span style={{ color: 'var(--white)', marginLeft: 8 }}>roast_wallet</span>
             <span style={{ color: 'var(--dimmer)' }}>(address)</span>
           </h1>
-          <p style={{ fontSize: 11, color: 'var(--dimmer)', lineHeight: 1.7 }}>
-            // Submit any EVM, Solana, or SUI wallet. GenLayer AI roasts every bad decision on-chain.
-          </p>
+          <p style={{ fontSize: 11, color: 'var(--dimmer)', lineHeight: 1.7 }}>// Submit any EVM, Solana, or SUI wallet. GenLayer AI roasts every bad decision on-chain. No wallet needed.</p>
         </div>
-
         {(stage === 'input' || stage === 'error') && (
-          <div style={{ width: '100%', maxWidth: 560 }} className="animate-fade-in">
-            {!isConnected && (
-              <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(255,179,0,0.06)', border: '1px solid rgba(255,179,0,0.25)', fontSize: 10, color: 'var(--amber)' }}>
-                ⚠ Connect wallet to sign the GenLayer transaction · Get free GEN at testnet-faucet.genlayer.foundation
-              </div>
-            )}
-            {isConnected && !isWrongNetwork && (
-              <div style={{ marginBottom: 12, padding: '8px 14px', background: 'rgba(0,255,65,0.04)', border: '1px solid rgba(0,255,65,0.15)', fontSize: 10, color: 'var(--green)' }}>
-                ✓ Wallet connected · GenLayer Bradbury · Ready
-              </div>
-            )}
+          <div style={{ width: '100%', maxWidth: 560 }}>
             <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderBottom: 'none', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff5f57' }} />
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#febc2e' }} />
@@ -132,7 +97,7 @@ export default function RoastPage() {
               {validation.valid && <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--green)' }}>[{validation.chain.toUpperCase()}] ✓</span>}
             </div>
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px' }}>
-              <div style={{ marginBottom: 8, fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em' }}># WALLET_ADDRESS — EVM (0x+42) · SOLANA (32-44) · SUI (0x+66)</div>
+              <div style={{ marginBottom: 8, fontSize: 9, color: 'var(--dimmer)' }}># WALLET_ADDRESS — EVM (0x+42) · SOLANA (32-44) · SUI (0x+66)</div>
               <div style={{ display: 'flex', marginBottom: 8 }}>
                 <span style={{ padding: '10px 12px', background: 'rgba(0,255,65,0.05)', border: '1px solid var(--border2)', borderRight: 'none', fontSize: 12, color: 'var(--green)' }}>&gt;_</span>
                 <input type="text" placeholder="0x... or Solana address" value={address}
@@ -144,24 +109,22 @@ export default function RoastPage() {
               {validation.valid && <div style={{ marginBottom: 8, fontSize: 10, color: 'var(--green)' }}>✓ valid {validation.chain.toUpperCase()} address</div>}
               {errMsg && <div style={{ marginBottom: 10, padding: '8px 12px', background: 'rgba(255,60,0,0.06)', border: '1px solid rgba(255,60,0,0.2)', fontSize: 10, color: 'var(--red)' }}>✗ {errMsg}</div>}
               <button onClick={handleRoast} disabled={!validation.valid} className="btn-exec" style={{ width: '100%', fontSize: 11, padding: '12px' }}>
-                {!isConnected ? '$ CONNECT_WALLET --then-roast' : isWrongNetwork ? '$ SWITCH_NETWORK --chain=bradbury' : `$ EXECUTE ROAST_ENGINE --target ${address ? address.slice(0,8)+'...' : '<address>'}`}
+                $ EXECUTE ROAST_ENGINE --target {address ? address.slice(0,8)+'...' : '<address>'}
               </button>
               <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {['ETH','BSC','Base','Polygon','Arbitrum','Avalanche','Optimism','Solana','SUI'].map(c => (
                   <span key={c} style={{ fontSize: 9, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--dimmer)' }}>{c}</span>
                 ))}
               </div>
-              <div style={{ marginTop: 8, fontSize: 9, color: 'var(--dimmer)' }}>// REQUIRES METAMASK + GEN TOKENS · FREE AT testnet-faucet.genlayer.foundation</div>
+              <div style={{ marginTop: 8, fontSize: 9, color: 'var(--dimmer)' }}>// FREE · NO WALLET NEEDED · AI RUNS ON GENLAYER · 2-5 MIN</div>
             </div>
           </div>
         )}
-
         {stage === 'loading' && <div style={{ width: '100%', maxWidth: 560 }}><Thinking type="roast" /></div>}
-
         {stage === 'result' && result && (
-          <div style={{ width: '100%', maxWidth: 560 }} className="animate-slide-up">
-            <div style={{ marginBottom: 10, fontSize: 10, color: 'var(--green)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+          <div style={{ width: '100%', maxWidth: 560 }}>
+            <div style={{ marginBottom: 10, fontSize: 10, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
               ROAST DELIVERED · STORED ON GENLAYER CHAIN
             </div>
             <ShareCard type="roast" content={result.roast} subject={result.address} chain={result.chain} timestamp={result.timestamp} />
